@@ -1,0 +1,103 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Leads por Campo Customizado</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: auto; }
+    h2 { margin-bottom: 10px; }
+    label, select, input, button { margin-right: 10px; margin-bottom: 10px; }
+    canvas { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h2>Gráfico de Leads por Campo Customizado</h2>
+  <div>
+    <label for="startDate">De: <input type="text" id="startDate" class="flatpickr" /></label>
+    <label for="endDate">Até: <input type="text" id="endDate" class="flatpickr" /></label>
+    <label for="fieldSelect">Campo:
+      <select id="fieldSelect">
+        <option value="">Carregando campos...</option>
+      </select>
+    </label>
+    <button onclick="loadData()">Atualizar</button>
+  </div>
+  <canvas id="leadsChart" height="300"></canvas>
+
+  <script>
+    let chart;
+
+    flatpickr(".flatpickr", { dateFormat: "Y-m-d" });
+
+    async function fetchCustomFields() {
+      const res = await App.request('GET', '/api/v4/leads/custom_fields');
+      const select = document.getElementById('fieldSelect');
+      select.innerHTML = '';
+      res._embedded.custom_fields.forEach(field => {
+        const option = document.createElement('option');
+        option.value = field.id;
+        option.textContent = field.name;
+        select.appendChild(option);
+      });
+    }
+
+    async function fetchLeads(start, end) {
+      const startTime = new Date(start).toISOString();
+      const endTime = new Date(end).toISOString();
+      const res = await App.request('GET', '/api/v4/leads', {
+        with: 'custom_fields_values',
+        filter: {
+          created_at: { from: startTime, to: endTime }
+        }
+      });
+      return res._embedded.leads || [];
+    }
+
+    function groupLeadsByField(leads, fieldId) {
+      const result = {};
+      leads.forEach(lead => {
+        const field = lead.custom_fields_values?.find(f => f.field_id == fieldId);
+        if (field) {
+          field.values.forEach(v => {
+            const val = v.value;
+            result[val] = (result[val] || 0) + 1;
+          });
+        }
+      });
+      return result;
+    }
+
+    function renderChart(data) {
+      const ctx = document.getElementById('leadsChart').getContext('2d');
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(data),
+          datasets: [{
+            label: 'Qtd de Leads',
+            data: Object.values(data),
+            backgroundColor: 'rgba(75, 192, 192, 0.6)'
+          }]
+        }
+      });
+    }
+
+    async function loadData() {
+      const start = document.getElementById('startDate').value;
+      const end = document.getElementById('endDate').value;
+      const fieldId = document.getElementById('fieldSelect').value;
+      if (!start || !end || !fieldId) return;
+      const leads = await fetchLeads(start, end);
+      const grouped = groupLeadsByField(leads, fieldId);
+      renderChart(grouped);
+    }
+
+    fetchCustomFields();
+  </script>
+</body>
+</html>
