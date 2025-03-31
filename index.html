@@ -4,54 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <title>Leads por Campo Customizado</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js">
-    function saveAndLoad() {
-      const domain = document.getElementById('apiDomain').value;
-      const token = document.getElementById('apiKey').value;
-      if (!domain || !token) return alert("Preencha o domínio e o token.");
-      localStorage.setItem('kommo_domain', domain);
-      localStorage.setItem('kommo_token', token);
-      document.getElementById('configSection').style.display = 'none';
-      loadCustomFields();
-    }
-
-    function prefillSettings() {
-      const domain = localStorage.getItem('kommo_domain');
-      const token = localStorage.getItem('kommo_token');
-      if (domain && token) {
-        document.getElementById('apiDomain').value = domain;
-        document.getElementById('apiKey').value = token;
-        document.getElementById('configSection').style.display = 'none';
-        loadCustomFields();
-      }
-    }
-
-    window.onload = prefillSettings;
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr">
-    function saveAndLoad() {
-      const domain = document.getElementById('apiDomain').value;
-      const token = document.getElementById('apiKey').value;
-      if (!domain || !token) return alert("Preencha o domínio e o token.");
-      localStorage.setItem('kommo_domain', domain);
-      localStorage.setItem('kommo_token', token);
-      document.getElementById('configSection').style.display = 'none';
-      loadCustomFields();
-    }
-
-    function prefillSettings() {
-      const domain = localStorage.getItem('kommo_domain');
-      const token = localStorage.getItem('kommo_token');
-      if (domain && token) {
-        document.getElementById('apiDomain').value = domain;
-        document.getElementById('apiKey').value = token;
-        document.getElementById('configSection').style.display = 'none';
-        loadCustomFields();
-      }
-    }
-
-    window.onload = prefillSettings;
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
   <style>
     body {
@@ -80,20 +34,12 @@
 </head>
 <body>
   <h2>Gráfico de Leads por Campo Customizado</h2>
-  
   <div id="configSection" style="margin-bottom: 20px;">
     <label for="apiDomain">Domínio Kommo:</label>
     <input type="text" id="apiDomain" placeholder="example.kommo.com" />
     <label for="apiKey">Token:</label>
     <input type="password" id="apiKey" placeholder="API Key" />
     <button onclick="saveAndLoad()">Carregar campos</button>
-  </div>
-  
-    <label for="apiDomain">Domínio Kommo:</label>
-    <input type="text" id="apiDomain" placeholder="example.kommo.com" />
-    <label for="apiKey">Token:</label>
-    <input type="password" id="apiKey" placeholder="API Key" />
-    <button onclick="loadCustomFields()">Carregar campos</button>
   </div>
   <div>
     <label for="startDate">De:
@@ -110,6 +56,9 @@
     <button onclick="loadData()">Atualizar</button>
   </div>
   <canvas id="leadsChart" height="300"></canvas>
+  <div style="margin-top: 15px;">
+    <button onclick="resetCredentials()">🔁 Redefinir Token</button>
+  </div>
 
   <script>
     let chart;
@@ -117,7 +66,7 @@
     flatpickr(".flatpickr", { dateFormat: "Y-m-d" });
 
     function getAuthHeaders() {
-      const token = document.getElementById('apiKey').value;
+      const token = localStorage.getItem('kommo_token');
       return {
         'Authorization': 'Bearer ' + token,
         'Content-Type': 'application/json',
@@ -126,7 +75,7 @@
     }
 
     function getDomain() {
-      return document.getElementById('apiDomain').value.trim();
+      return localStorage.getItem('kommo_domain');
     }
 
     async function loadCustomFields() {
@@ -194,7 +143,7 @@
       const grouped = groupLeadsByField(leads, fieldId);
       renderChart(grouped);
     }
-  
+
     function saveAndLoad() {
       const domain = document.getElementById('apiDomain').value;
       const token = document.getElementById('apiKey').value;
@@ -203,6 +152,12 @@
       localStorage.setItem('kommo_token', token);
       document.getElementById('configSection').style.display = 'none';
       loadCustomFields();
+    }
+
+    function resetCredentials() {
+      localStorage.removeItem('kommo_domain');
+      localStorage.removeItem('kommo_token');
+      location.reload();
     }
 
     function prefillSettings() {
