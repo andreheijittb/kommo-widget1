@@ -1,0 +1,14 @@
+{
+  "name": "API Widget",
+  "description": "Gráfico de Leads por Campo Customizado",
+  "version": "1.0",
+  "support_url": "https://andreheijittb.github.io/kommo-widget1/",
+  "frontend": {
+    "url": "https://andreheijittb.github.io/kommo-widget1/",
+    "height": 600,
+    "width": 1000
+  },
+  "permissions": [
+    "leads.read"
+  ]
+}
