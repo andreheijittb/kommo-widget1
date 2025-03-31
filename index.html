@@ -8,20 +8,49 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: auto; }
-    h2 { margin-bottom: 10px; }
-    label, select, input, button { margin-right: 10px; margin-bottom: 10px; }
-    canvas { margin-top: 20px; }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #0d2236;
+      color: white;
+      padding: 20px;
+      max-width: 900px;
+      margin: auto;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    label, select, input, button {
+      margin: 10px 5px 10px 0;
+    }
+    input, select, button {
+      padding: 4px;
+    }
+    canvas {
+      margin-top: 30px;
+      background-color: white;
+      border-radius: 8px;
+    }
   </style>
 </head>
 <body>
   <h2>Gráfico de Leads por Campo Customizado</h2>
+  <div style="margin-bottom: 20px;">
+    <label for="apiDomain">Domínio Kommo:</label>
+    <input type="text" id="apiDomain" placeholder="example.kommo.com" />
+    <label for="apiKey">Token:</label>
+    <input type="password" id="apiKey" placeholder="API Key" />
+    <button onclick="loadCustomFields()">Carregar campos</button>
+  </div>
   <div>
-    <label for="startDate">De: <input type="text" id="startDate" class="flatpickr" /></label>
-    <label for="endDate">Até: <input type="text" id="endDate" class="flatpickr" /></label>
+    <label for="startDate">De:
+      <input type="text" id="startDate" class="flatpickr" />
+    </label>
+    <label for="endDate">Até:
+      <input type="text" id="endDate" class="flatpickr" />
+    </label>
     <label for="fieldSelect">Campo:
       <select id="fieldSelect">
-        <option value="">Carregando campos...</option>
+        <option value="">Selecione...</option>
       </select>
     </label>
     <button onclick="loadData()">Atualizar</button>
@@ -33,11 +62,28 @@
 
     flatpickr(".flatpickr", { dateFormat: "Y-m-d" });
 
-    async function fetchCustomFields() {
-      const res = await App.request('GET', '/api/v4/leads/custom_fields');
+    function getAuthHeaders() {
+      const token = document.getElementById('apiKey').value;
+      return {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      };
+    }
+
+    function getDomain() {
+      return document.getElementById('apiDomain').value.trim();
+    }
+
+    async function loadCustomFields() {
+      const domain = getDomain();
+      const response = await fetch(`https://${domain}/api/v4/leads/custom_fields`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
       const select = document.getElementById('fieldSelect');
       select.innerHTML = '';
-      res._embedded.custom_fields.forEach(field => {
+      data._embedded.custom_fields.forEach(field => {
         const option = document.createElement('option');
         option.value = field.id;
         option.textContent = field.name;
@@ -46,15 +92,13 @@
     }
 
     async function fetchLeads(start, end) {
-      const startTime = new Date(start).toISOString();
-      const endTime = new Date(end).toISOString();
-      const res = await App.request('GET', '/api/v4/leads', {
-        with: 'custom_fields_values',
-        filter: {
-          created_at: { from: startTime, to: endTime }
-        }
+      const domain = getDomain();
+      const url = `https://${domain}/api/v4/leads?with=custom_fields_values&filter[created_at][from]=${start}&filter[created_at][to]=${end}`;
+      const response = await fetch(url, {
+        headers: getAuthHeaders()
       });
-      return res._embedded.leads || [];
+      const data = await response.json();
+      return data._embedded?.leads || [];
     }
 
     function groupLeadsByField(leads, fieldId) {
@@ -96,8 +140,6 @@
       const grouped = groupLeadsByField(leads, fieldId);
       renderChart(grouped);
     }
-
-    fetchCustomFields();
   </script>
 </body>
 </html>
