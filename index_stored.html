@@ -1,0 +1,222 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Leads por Campo Customizado</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js">
+    function saveAndLoad() {
+      const domain = document.getElementById('apiDomain').value;
+      const token = document.getElementById('apiKey').value;
+      if (!domain || !token) return alert("Preencha o domínio e o token.");
+      localStorage.setItem('kommo_domain', domain);
+      localStorage.setItem('kommo_token', token);
+      document.getElementById('configSection').style.display = 'none';
+      loadCustomFields();
+    }
+
+    function prefillSettings() {
+      const domain = localStorage.getItem('kommo_domain');
+      const token = localStorage.getItem('kommo_token');
+      if (domain && token) {
+        document.getElementById('apiDomain').value = domain;
+        document.getElementById('apiKey').value = token;
+        document.getElementById('configSection').style.display = 'none';
+        loadCustomFields();
+      }
+    }
+
+    window.onload = prefillSettings;
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr">
+    function saveAndLoad() {
+      const domain = document.getElementById('apiDomain').value;
+      const token = document.getElementById('apiKey').value;
+      if (!domain || !token) return alert("Preencha o domínio e o token.");
+      localStorage.setItem('kommo_domain', domain);
+      localStorage.setItem('kommo_token', token);
+      document.getElementById('configSection').style.display = 'none';
+      loadCustomFields();
+    }
+
+    function prefillSettings() {
+      const domain = localStorage.getItem('kommo_domain');
+      const token = localStorage.getItem('kommo_token');
+      if (domain && token) {
+        document.getElementById('apiDomain').value = domain;
+        document.getElementById('apiKey').value = token;
+        document.getElementById('configSection').style.display = 'none';
+        loadCustomFields();
+      }
+    }
+
+    window.onload = prefillSettings;
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #0d2236;
+      color: white;
+      padding: 20px;
+      max-width: 900px;
+      margin: auto;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    label, select, input, button {
+      margin: 10px 5px 10px 0;
+    }
+    input, select, button {
+      padding: 4px;
+    }
+    canvas {
+      margin-top: 30px;
+      background-color: white;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Gráfico de Leads por Campo Customizado</h2>
+  
+  <div id="configSection" style="margin-bottom: 20px;">
+    <label for="apiDomain">Domínio Kommo:</label>
+    <input type="text" id="apiDomain" placeholder="example.kommo.com" />
+    <label for="apiKey">Token:</label>
+    <input type="password" id="apiKey" placeholder="API Key" />
+    <button onclick="saveAndLoad()">Carregar campos</button>
+  </div>
+  
+    <label for="apiDomain">Domínio Kommo:</label>
+    <input type="text" id="apiDomain" placeholder="example.kommo.com" />
+    <label for="apiKey">Token:</label>
+    <input type="password" id="apiKey" placeholder="API Key" />
+    <button onclick="loadCustomFields()">Carregar campos</button>
+  </div>
+  <div>
+    <label for="startDate">De:
+      <input type="text" id="startDate" class="flatpickr" />
+    </label>
+    <label for="endDate">Até:
+      <input type="text" id="endDate" class="flatpickr" />
+    </label>
+    <label for="fieldSelect">Campo:
+      <select id="fieldSelect">
+        <option value="">Selecione...</option>
+      </select>
+    </label>
+    <button onclick="loadData()">Atualizar</button>
+  </div>
+  <canvas id="leadsChart" height="300"></canvas>
+
+  <script>
+    let chart;
+
+    flatpickr(".flatpickr", { dateFormat: "Y-m-d" });
+
+    function getAuthHeaders() {
+      const token = document.getElementById('apiKey').value;
+      return {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      };
+    }
+
+    function getDomain() {
+      return document.getElementById('apiDomain').value.trim();
+    }
+
+    async function loadCustomFields() {
+      const domain = getDomain();
+      const response = await fetch(`https://${domain}/api/v4/leads/custom_fields`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      const select = document.getElementById('fieldSelect');
+      select.innerHTML = '';
+      data._embedded.custom_fields.forEach(field => {
+        const option = document.createElement('option');
+        option.value = field.id;
+        option.textContent = field.name;
+        select.appendChild(option);
+      });
+    }
+
+    async function fetchLeads(start, end) {
+      const domain = getDomain();
+      const url = `https://${domain}/api/v4/leads?with=custom_fields_values&filter[created_at][from]=${start}&filter[created_at][to]=${end}`;
+      const response = await fetch(url, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      return data._embedded?.leads || [];
+    }
+
+    function groupLeadsByField(leads, fieldId) {
+      const result = {};
+      leads.forEach(lead => {
+        const field = lead.custom_fields_values?.find(f => f.field_id == fieldId);
+        if (field) {
+          field.values.forEach(v => {
+            const val = v.value;
+            result[val] = (result[val] || 0) + 1;
+          });
+        }
+      });
+      return result;
+    }
+
+    function renderChart(data) {
+      const ctx = document.getElementById('leadsChart').getContext('2d');
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(data),
+          datasets: [{
+            label: 'Qtd de Leads',
+            data: Object.values(data),
+            backgroundColor: 'rgba(75, 192, 192, 0.6)'
+          }]
+        }
+      });
+    }
+
+    async function loadData() {
+      const start = document.getElementById('startDate').value;
+      const end = document.getElementById('endDate').value;
+      const fieldId = document.getElementById('fieldSelect').value;
+      if (!start || !end || !fieldId) return;
+      const leads = await fetchLeads(start, end);
+      const grouped = groupLeadsByField(leads, fieldId);
+      renderChart(grouped);
+    }
+  
+    function saveAndLoad() {
+      const domain = document.getElementById('apiDomain').value;
+      const token = document.getElementById('apiKey').value;
+      if (!domain || !token) return alert("Preencha o domínio e o token.");
+      localStorage.setItem('kommo_domain', domain);
+      localStorage.setItem('kommo_token', token);
+      document.getElementById('configSection').style.display = 'none';
+      loadCustomFields();
+    }
+
+    function prefillSettings() {
+      const domain = localStorage.getItem('kommo_domain');
+      const token = localStorage.getItem('kommo_token');
+      if (domain && token) {
+        document.getElementById('apiDomain').value = domain;
+        document.getElementById('apiKey').value = token;
+        document.getElementById('configSection').style.display = 'none';
+        loadCustomFields();
+      }
+    }
+
+    window.onload = prefillSettings;
+  </script>
+</body>
+</html>
